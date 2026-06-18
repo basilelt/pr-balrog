@@ -66,6 +66,11 @@ inputs:
     required: false
     default: 'command'
 
+  multi-answer-questions:
+    description: 'Allow questions with 2 correct answers (multi-select). Set to false for single-correct-answer questions only.'
+    required: false
+    default: 'true'
+
   pr-number-override:
     description: 'Override PR number — used when triggered via workflow_dispatch (!balrog retry). Leave empty for normal pull_request events.'
     required: false

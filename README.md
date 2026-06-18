@@ -107,6 +107,7 @@ jobs:
           min-lines-threshold: '10'
           language: 'auto'
           # answer-mode: 'checkbox'            # command (default) | checkbox
+          # multi-answer-questions: 'false'    # true (default) | false (single-correct answers only)
           # quiz-responder: 'author'           # author | reviewer | collaborator | any
           pr-number-override: ${{ github.event.inputs.pr_number || '' }}
 ```
@@ -214,6 +215,8 @@ Questions are posted as a PR comment:
 - **C)** Silent data truncation
 ```
 
+Set `multi-answer-questions: false` in the generate step to disable the `*(multiple answers)*` style — every question then has exactly one correct answer.
+
 The author replies in the PR comment thread:
 
 ```
@@ -296,6 +299,7 @@ When all attempts are exhausted a **🔄 Request a new quiz** checkbox is append
 | `language` | `auto` | `auto` \| `en` \| `fr` \| `es` \| ... |
 | `additional-prompt` | — | Extra instructions appended to the AI prompt |
 | `answer-mode` | `command` | `command` (type `!balrog 1:A 2:B`) \| `checkbox` (click task-list checkboxes in the quiz comment) |
+| `multi-answer-questions` | `true` | Allow questions with 2 correct answers. Set `false` for single-correct-answer questions only |
 | `quiz-responder` | `author` | Who can answer the quiz: `author` \| `reviewer` \| `collaborator` \| `any` |
 
 ### Quiz size (auto mode)

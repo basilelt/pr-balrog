@@ -51,6 +51,7 @@ async function run() {
     const language = core.getInput('language') || 'auto';
     const additionalPrompt = core.getInput('additional-prompt') || undefined;
     const answerMode = (core.getInput('answer-mode') || 'command');
+    const allowMultiAnswer = (core.getInput('multi-answer-questions') || 'true') !== 'false';
     const excludePatterns = excludeRaw
         .split(',')
         .map((p) => p.trim())
@@ -117,7 +118,7 @@ async function run() {
     core.info(`Generating ${numQuestions}-question quiz via ${provider}`);
     // Generate quiz
     const adapter = (0, providers_1.createProvider)(provider, apiKey, model);
-    const questions = await adapter.generateQuiz({ diff, numQuestions, language, additionalPrompt });
+    const questions = await adapter.generateQuiz({ diff, numQuestions, language, additionalPrompt, allowMultiAnswer });
     // Load old quiz BEFORE saving the new one (both share the same artifact name)
     const oldQuiz = await (0, github_1.loadQuizArtifact)(ctx.prNumber, octokit, ctx.owner, ctx.repo, token);
     // Carry history forward so previous quiz questions + attempts are preserved

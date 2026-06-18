@@ -50,6 +50,18 @@ describe('buildUserPrompt', () => {
     expect(prompt).not.toContain('Additional instructions:')
   })
 
+  it('allows multi-answer questions by default', () => {
+    const prompt = buildUserPrompt(diff, 3, 'en')
+    expect(prompt).toContain('multi:true')
+    expect(prompt).not.toContain('exactly ONE correct answer')
+  })
+
+  it('forbids multi-answer questions when disabled', () => {
+    const prompt = buildUserPrompt(diff, 3, 'en', undefined, false)
+    expect(prompt).toContain('exactly ONE correct answer')
+    expect(prompt).not.toContain('multi:true')
+  })
+
   it('truncates very long diffs to 28000 chars', () => {
     const longDiff = 'x'.repeat(40000)
     const prompt = buildUserPrompt(longDiff, 3, 'en')

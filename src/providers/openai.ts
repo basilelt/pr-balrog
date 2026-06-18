@@ -18,12 +18,12 @@ export class OpenAIAdapter implements AIAdapter {
       response_format: { type: 'json_object' },
       messages: [
         { role: 'system', content: buildSystemPrompt() },
-        { role: 'user', content: buildUserPrompt(opts.diff, opts.numQuestions, opts.language, opts.additionalPrompt) },
+        { role: 'user', content: buildUserPrompt(opts.diff, opts.numQuestions, opts.language, opts.additionalPrompt, opts.allowMultiAnswer) },
       ],
     })
 
     const text = response.choices[0]?.message?.content ?? ''
-    return parseQuizResponse(text, opts.numQuestions)
+    return parseQuizResponse(text, opts.numQuestions, opts.allowMultiAnswer)
   }
 }
 
@@ -55,11 +55,11 @@ export class AzureOpenAIAdapter implements AIAdapter {
       response_format: { type: 'json_object' },
       messages: [
         { role: 'system', content: buildSystemPrompt() },
-        { role: 'user', content: buildUserPrompt(opts.diff, opts.numQuestions, opts.language, opts.additionalPrompt) },
+        { role: 'user', content: buildUserPrompt(opts.diff, opts.numQuestions, opts.language, opts.additionalPrompt, opts.allowMultiAnswer) },
       ],
     })
 
     const text = response.choices[0]?.message?.content ?? ''
-    return parseQuizResponse(text, opts.numQuestions)
+    return parseQuizResponse(text, opts.numQuestions, opts.allowMultiAnswer)
   }
 }

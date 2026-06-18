@@ -1,5 +1,5 @@
 import { createProvider } from '../providers'
-import { AnthropicAdapter } from '../providers/anthropic'
+import { AnthropicAdapter, parseQuizResponse } from '../providers/anthropic'
 import { OpenAIAdapter, GitHubModelsAdapter, AzureOpenAIAdapter } from '../providers/openai'
 import { OllamaAdapter } from '../providers/ollama'
 import type { AIProvider } from '../types'
@@ -49,5 +49,32 @@ describe('createProvider', () => {
     const adapter = createProvider('anthropic', 'key', 'claude-opus-4-7') as AnthropicAdapter
     // @ts-expect-error accessing private field for test
     expect(adapter.model).toBe('claude-opus-4-7')
+  })
+})
+
+describe('parseQuizResponse multi-answer clamp', () => {
+  const twoCorrect = JSON.stringify({
+    questions: [
+      {
+        id: 1,
+        text: 'Which risks does this introduce?',
+        options: ['Race condition', 'Deadlock', 'Truncation'],
+        correct: ['A', 'B'],
+        explanation: 'Both apply.',
+        multi: true,
+      },
+    ],
+  })
+
+  it('keeps 2-correct questions when multi-answer is allowed', () => {
+    const [q] = parseQuizResponse(twoCorrect, 1, true)
+    expect(q.correct).toEqual(['A', 'B'])
+    expect(q.multi).toBe(true)
+  })
+
+  it('coerces to single-correct when multi-answer is disabled', () => {
+    const [q] = parseQuizResponse(twoCorrect, 1, false)
+    expect(q.correct).toEqual(['A'])
+    expect(q.multi).toBe(false)
   })
 })

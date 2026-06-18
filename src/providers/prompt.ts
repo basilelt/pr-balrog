@@ -5,11 +5,21 @@ export function buildSystemPrompt(): string {
 Your goal is to verify the developer genuinely understands the changes they made — the WHY, the trade-offs, and the risks — not just the surface-level WHAT.`
 }
 
-export function buildUserPrompt(diff: string, numQuestions: QuizSize, language: string, additionalPrompt?: string): string {
+export function buildUserPrompt(
+  diff: string,
+  numQuestions: QuizSize,
+  language: string,
+  additionalPrompt?: string,
+  allowMultiAnswer = true,
+): string {
   const langNote =
     language === 'auto'
       ? 'Detect the language from the PR diff context (comments, identifiers). Default to English.'
       : `Write all questions and options in: ${language}`
+
+  const multiNote = allowMultiAnswer
+    ? 'Mark questions with 2 correct answers as multi:true (max 2 correct per question)'
+    : 'Every question has exactly ONE correct answer. Always set "multi": false and put exactly one entry in "correct".'
 
   return `Here is a pull request diff:
 
@@ -23,7 +33,7 @@ Rules:
 - Focus on WHY implementation choices were made, not just WHAT changed
 - Test awareness of risks, trade-offs, and side-effects visible in the diff
 - Each question has exactly 3 options labeled A, B, C
-- Mark questions with 2 correct answers as multi:true (max 2 correct per question)
+- ${multiNote}
 - Never ask about trivial formatting or naming choices
 - Explanations should be 1-2 sentences max
 - ${langNote}

@@ -60,6 +60,7 @@ export interface GenerateQuizOptions {
   numQuestions: QuizSize
   language: string
   additionalPrompt?: string
+  allowMultiAnswer?: boolean
 }
 
 export interface AIAdapter {

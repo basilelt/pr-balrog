@@ -20,7 +20,7 @@ export class OllamaAdapter implements AIAdapter {
         model: this.model,
         messages: [
           { role: 'system', content: buildSystemPrompt() },
-          { role: 'user', content: buildUserPrompt(opts.diff, opts.numQuestions, opts.language, opts.additionalPrompt) },
+          { role: 'user', content: buildUserPrompt(opts.diff, opts.numQuestions, opts.language, opts.additionalPrompt, opts.allowMultiAnswer) },
         ],
         format: 'json',
         stream: false,
@@ -33,6 +33,6 @@ export class OllamaAdapter implements AIAdapter {
 
     const data = (await response.json()) as { choices: { message: { content: string } }[] }
     const text = data.choices[0]?.message?.content ?? ''
-    return parseQuizResponse(text, opts.numQuestions)
+    return parseQuizResponse(text, opts.numQuestions, opts.allowMultiAnswer)
   }
 }

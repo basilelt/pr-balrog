@@ -25,7 +25,7 @@ export class AnthropicAdapter implements AIAdapter {
       messages: [
         {
           role: 'user',
-          content: buildUserPrompt(opts.diff, opts.numQuestions, opts.language, opts.additionalPrompt),
+          content: buildUserPrompt(opts.diff, opts.numQuestions, opts.language, opts.additionalPrompt, opts.allowMultiAnswer),
         },
       ],
     })
@@ -35,11 +35,11 @@ export class AnthropicAdapter implements AIAdapter {
       .map((b) => (b as { type: 'text'; text: string }).text)
       .join('')
 
-    return parseQuizResponse(text, opts.numQuestions)
+    return parseQuizResponse(text, opts.numQuestions, opts.allowMultiAnswer)
   }
 }
 
-function parseQuizResponse(raw: string, expected: number): Question[] {
+function parseQuizResponse(raw: string, expected: number, allowMultiAnswer = true): Question[] {
   // strip markdown code fences if present
   const cleaned = raw.replace(/^```(?:json)?\n?/m, '').replace(/\n?```$/m, '').trim()
 
@@ -50,9 +50,14 @@ function parseQuizResponse(raw: string, expected: number): Question[] {
     throw new Error(`AI returned invalid quiz schema: ${result.error.message}`)
   }
 
-  const questions = result.data.questions.slice(0, expected)
+  let questions = result.data.questions.slice(0, expected)
   if (questions.length < expected) {
     throw new Error(`AI returned ${questions.length} questions, expected ${expected}`)
+  }
+
+  // Enforce single-correct when multi-answer is disabled — the model ignores instructions
+  if (!allowMultiAnswer) {
+    questions = questions.map((q) => (q.multi || q.correct.length > 1 ? { ...q, correct: [q.correct[0]], multi: false } : q))
   }
 
   return questions

@@ -25,7 +25,7 @@ class AnthropicAdapter {
             messages: [
                 {
                     role: 'user',
-                    content: (0, prompt_1.buildUserPrompt)(opts.diff, opts.numQuestions, opts.language, opts.additionalPrompt),
+                    content: (0, prompt_1.buildUserPrompt)(opts.diff, opts.numQuestions, opts.language, opts.additionalPrompt, opts.allowMultiAnswer),
                 },
             ],
         });
@@ -33,11 +33,11 @@ class AnthropicAdapter {
             .filter((b) => b.type === 'text')
             .map((b) => b.text)
             .join('');
-        return parseQuizResponse(text, opts.numQuestions);
+        return parseQuizResponse(text, opts.numQuestions, opts.allowMultiAnswer);
     }
 }
 exports.AnthropicAdapter = AnthropicAdapter;
-function parseQuizResponse(raw, expected) {
+function parseQuizResponse(raw, expected, allowMultiAnswer = true) {
     // strip markdown code fences if present
     const cleaned = raw.replace(/^```(?:json)?\n?/m, '').replace(/\n?```$/m, '').trim();
     const parsed = JSON.parse(cleaned);
@@ -45,9 +45,13 @@ function parseQuizResponse(raw, expected) {
     if (!result.success) {
         throw new Error(`AI returned invalid quiz schema: ${result.error.message}`);
     }
-    const questions = result.data.questions.slice(0, expected);
+    let questions = result.data.questions.slice(0, expected);
     if (questions.length < expected) {
         throw new Error(`AI returned ${questions.length} questions, expected ${expected}`);
+    }
+    // Enforce single-correct when multi-answer is disabled — the model ignores instructions
+    if (!allowMultiAnswer) {
+        questions = questions.map((q) => (q.multi || q.correct.length > 1 ? { ...q, correct: [q.correct[0]], multi: false } : q));
     }
     return questions;
 }

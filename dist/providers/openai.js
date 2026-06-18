@@ -18,11 +18,11 @@ class OpenAIAdapter {
             response_format: { type: 'json_object' },
             messages: [
                 { role: 'system', content: (0, prompt_1.buildSystemPrompt)() },
-                { role: 'user', content: (0, prompt_1.buildUserPrompt)(opts.diff, opts.numQuestions, opts.language, opts.additionalPrompt) },
+                { role: 'user', content: (0, prompt_1.buildUserPrompt)(opts.diff, opts.numQuestions, opts.language, opts.additionalPrompt, opts.allowMultiAnswer) },
             ],
         });
         const text = response.choices[0]?.message?.content ?? '';
-        return (0, anthropic_1.parseQuizResponse)(text, opts.numQuestions);
+        return (0, anthropic_1.parseQuizResponse)(text, opts.numQuestions, opts.allowMultiAnswer);
     }
 }
 exports.OpenAIAdapter = OpenAIAdapter;
@@ -50,11 +50,11 @@ class AzureOpenAIAdapter {
             response_format: { type: 'json_object' },
             messages: [
                 { role: 'system', content: (0, prompt_1.buildSystemPrompt)() },
-                { role: 'user', content: (0, prompt_1.buildUserPrompt)(opts.diff, opts.numQuestions, opts.language, opts.additionalPrompt) },
+                { role: 'user', content: (0, prompt_1.buildUserPrompt)(opts.diff, opts.numQuestions, opts.language, opts.additionalPrompt, opts.allowMultiAnswer) },
             ],
         });
         const text = response.choices[0]?.message?.content ?? '';
-        return (0, anthropic_1.parseQuizResponse)(text, opts.numQuestions);
+        return (0, anthropic_1.parseQuizResponse)(text, opts.numQuestions, opts.allowMultiAnswer);
     }
 }
 exports.AzureOpenAIAdapter = AzureOpenAIAdapter;

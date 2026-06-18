@@ -86273,6 +86273,7 @@ async function run() {
     const language = core.getInput('language') || 'auto';
     const additionalPrompt = core.getInput('additional-prompt') || undefined;
     const answerMode = (core.getInput('answer-mode') || 'command');
+    const allowMultiAnswer = (core.getInput('multi-answer-questions') || 'true') !== 'false';
     const excludePatterns = excludeRaw
         .split(',')
         .map((p) => p.trim())
@@ -86339,7 +86340,7 @@ async function run() {
     core.info(`Generating ${numQuestions}-question quiz via ${provider}`);
     // Generate quiz
     const adapter = (0, providers_1.createProvider)(provider, apiKey, model);
-    const questions = await adapter.generateQuiz({ diff, numQuestions, language, additionalPrompt });
+    const questions = await adapter.generateQuiz({ diff, numQuestions, language, additionalPrompt, allowMultiAnswer });
     // Load old quiz BEFORE saving the new one (both share the same artifact name)
     const oldQuiz = await (0, github_1.loadQuizArtifact)(ctx.prNumber, octokit, ctx.owner, ctx.repo, token);
     // Carry history forward so previous quiz questions + attempts are preserved
@@ -86716,7 +86717,7 @@ class AnthropicAdapter {
             messages: [
                 {
                     role: 'user',
-                    content: (0, prompt_1.buildUserPrompt)(opts.diff, opts.numQuestions, opts.language, opts.additionalPrompt),
+                    content: (0, prompt_1.buildUserPrompt)(opts.diff, opts.numQuestions, opts.language, opts.additionalPrompt, opts.allowMultiAnswer),
                 },
             ],
         });
@@ -86724,11 +86725,11 @@ class AnthropicAdapter {
             .filter((b) => b.type === 'text')
             .map((b) => b.text)
             .join('');
-        return parseQuizResponse(text, opts.numQuestions);
+        return parseQuizResponse(text, opts.numQuestions, opts.allowMultiAnswer);
     }
 }
 exports.AnthropicAdapter = AnthropicAdapter;
-function parseQuizResponse(raw, expected) {
+function parseQuizResponse(raw, expected, allowMultiAnswer = true) {
     // strip markdown code fences if present
     const cleaned = raw.replace(/^```(?:json)?\n?/m, '').replace(/\n?```$/m, '').trim();
     const parsed = JSON.parse(cleaned);
@@ -86736,9 +86737,13 @@ function parseQuizResponse(raw, expected) {
     if (!result.success) {
         throw new Error(`AI returned invalid quiz schema: ${result.error.message}`);
     }
-    const questions = result.data.questions.slice(0, expected);
+    let questions = result.data.questions.slice(0, expected);
     if (questions.length < expected) {
         throw new Error(`AI returned ${questions.length} questions, expected ${expected}`);
+    }
+    // Enforce single-correct when multi-answer is disabled — the model ignores instructions
+    if (!allowMultiAnswer) {
+        questions = questions.map((q) => (q.multi || q.correct.length > 1 ? { ...q, correct: [q.correct[0]], multi: false } : q));
     }
     return questions;
 }
@@ -86849,7 +86854,7 @@ class OllamaAdapter {
                 model: this.model,
                 messages: [
                     { role: 'system', content: (0, prompt_1.buildSystemPrompt)() },
-                    { role: 'user', content: (0, prompt_1.buildUserPrompt)(opts.diff, opts.numQuestions, opts.language, opts.additionalPrompt) },
+                    { role: 'user', content: (0, prompt_1.buildUserPrompt)(opts.diff, opts.numQuestions, opts.language, opts.additionalPrompt, opts.allowMultiAnswer) },
                 ],
                 format: 'json',
                 stream: false,
@@ -86860,7 +86865,7 @@ class OllamaAdapter {
         }
         const data = (await response.json());
         const text = data.choices[0]?.message?.content ?? '';
-        return (0, anthropic_1.parseQuizResponse)(text, opts.numQuestions);
+        return (0, anthropic_1.parseQuizResponse)(text, opts.numQuestions, opts.allowMultiAnswer);
     }
 }
 exports.OllamaAdapter = OllamaAdapter;
@@ -86892,11 +86897,11 @@ class OpenAIAdapter {
             response_format: { type: 'json_object' },
             messages: [
                 { role: 'system', content: (0, prompt_1.buildSystemPrompt)() },
-                { role: 'user', content: (0, prompt_1.buildUserPrompt)(opts.diff, opts.numQuestions, opts.language, opts.additionalPrompt) },
+                { role: 'user', content: (0, prompt_1.buildUserPrompt)(opts.diff, opts.numQuestions, opts.language, opts.additionalPrompt, opts.allowMultiAnswer) },
             ],
         });
         const text = response.choices[0]?.message?.content ?? '';
-        return (0, anthropic_1.parseQuizResponse)(text, opts.numQuestions);
+        return (0, anthropic_1.parseQuizResponse)(text, opts.numQuestions, opts.allowMultiAnswer);
     }
 }
 exports.OpenAIAdapter = OpenAIAdapter;
@@ -86924,11 +86929,11 @@ class AzureOpenAIAdapter {
             response_format: { type: 'json_object' },
             messages: [
                 { role: 'system', content: (0, prompt_1.buildSystemPrompt)() },
-                { role: 'user', content: (0, prompt_1.buildUserPrompt)(opts.diff, opts.numQuestions, opts.language, opts.additionalPrompt) },
+                { role: 'user', content: (0, prompt_1.buildUserPrompt)(opts.diff, opts.numQuestions, opts.language, opts.additionalPrompt, opts.allowMultiAnswer) },
             ],
         });
         const text = response.choices[0]?.message?.content ?? '';
-        return (0, anthropic_1.parseQuizResponse)(text, opts.numQuestions);
+        return (0, anthropic_1.parseQuizResponse)(text, opts.numQuestions, opts.allowMultiAnswer);
     }
 }
 exports.AzureOpenAIAdapter = AzureOpenAIAdapter;
@@ -86948,10 +86953,13 @@ function buildSystemPrompt() {
     return `You are a code review assistant generating a comprehension quiz for a developer about their own pull request.
 Your goal is to verify the developer genuinely understands the changes they made — the WHY, the trade-offs, and the risks — not just the surface-level WHAT.`;
 }
-function buildUserPrompt(diff, numQuestions, language, additionalPrompt) {
+function buildUserPrompt(diff, numQuestions, language, additionalPrompt, allowMultiAnswer = true) {
     const langNote = language === 'auto'
         ? 'Detect the language from the PR diff context (comments, identifiers). Default to English.'
         : `Write all questions and options in: ${language}`;
+    const multiNote = allowMultiAnswer
+        ? 'Mark questions with 2 correct answers as multi:true (max 2 correct per question)'
+        : 'Every question has exactly ONE correct answer. Always set "multi": false and put exactly one entry in "correct".';
     return `Here is a pull request diff:
 
 <diff>
@@ -86964,7 +86972,7 @@ Rules:
 - Focus on WHY implementation choices were made, not just WHAT changed
 - Test awareness of risks, trade-offs, and side-effects visible in the diff
 - Each question has exactly 3 options labeled A, B, C
-- Mark questions with 2 correct answers as multi:true (max 2 correct per question)
+- ${multiNote}
 - Never ask about trivial formatting or naming choices
 - Explanations should be 1-2 sentences max
 - ${langNote}
